@@ -26,6 +26,7 @@ WHY?
     ```
 
 3. **Set Up Your API Key**
+
     **Option A**: Hardcode it here:
 
     ```go
