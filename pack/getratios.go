@@ -10,6 +10,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var API_KEY string = "YOUR_API_CODE"
+
 var supported_currencies map[string]bool = map[string]bool{"AED": true,
 	"AFN": true, "ALL": true, "AMD": true, "ANG": true, "AOA": true, "ARS": true,
 	"AUD": true, "AWG": true, "AZN": true, "BAM": true, "BBD": true, "BDT": true,
@@ -50,8 +52,6 @@ type API_ANS struct {
 	Base_code             string             `json:"base_code"`
 	Conversion_rates      map[string]float64 `json:"conversion_rates"`
 }
-
-var API_KEY string = "YOUR_API_CODE"
 
 func GetApiKey() string {
 	godotenv.Load()
