@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -41,7 +42,7 @@ var supported_currencies map[string]bool = map[string]bool{"AED": true,
 	"WST": true, "XAF": true, "XCD": true, "XDR": true, "XOF": true, "XPF": true,
 	"YER": true, "ZAR": true, "ZMW": true, "ZWL": true}
 
-type API_ANS struct {
+type STD_API_ANS struct {
 	Result                string             `json:"result"`
 	Documentation         string             `json:"documentation"`
 	Terms_of_use          string             `json:"terms_of_use"`
@@ -51,6 +52,127 @@ type API_ANS struct {
 	Time_next_update_utc  string             `json:"time_next_update_utc"`
 	Base_code             string             `json:"base_code"`
 	Conversion_rates      map[string]float64 `json:"conversion_rates"`
+}
+
+type PAIR_API_ANS struct {
+	Result                string  `json:"result"`
+	Documentation         string  `json:"documentation"`
+	Terms_of_use          string  `json:"terms_of_use"`
+	Time_last_update_unix uint    `json:"time_last_update_unix"`
+	Time_last_update_utc  string  `json:"time_last_update_utc"`
+	Time_next_update_unix uint    `json:"time_next_update_unix"`
+	Time_next_update_utc  string  `json:"time_next_update_utc"`
+	Base_code             string  `json:"base_code"`
+	Target_code           string  `json:"target_code"`
+	Conversion_rate       float64 `json:"conversion_rate"`
+	Conversion_result     float64 `json:"conversion_result"`
+}
+
+type ENRICHED_API_ANS struct {
+	Result                string            `json:"result"`
+	Documentation         string            `json:"documentation"`
+	Terms_of_use          string            `json:"terms_of_use"`
+	Time_last_update_unix uint              `json:"time_last_update_unix"`
+	Time_last_update_utc  string            `json:"time_last_update_utc"`
+	Time_next_update_unix uint              `json:"time_next_update_unix"`
+	Time_next_update_utc  string            `json:"time_next_update_utc"`
+	Base_code             string            `json:"base_code"`
+	Target_code           string            `json:"target_code"`
+	Conversion_rate       float64           `json:"conversion_rate"`
+	Target_data           map[string]string `json:"target_data"`
+}
+
+// TODO
+type HYSTORICAL_API_ANS struct {
+}
+
+func CheckCurrencyValid(currency string) bool {
+	_, ok := supported_currencies[currency]
+	return len(currency) == 3 && ok
+}
+
+// TODO
+func GetStdData(currency string)        {}
+func GetHystoricalData(currency string) {}
+
+func GetEnrichedData(curr_a, curr_b string) (ENRICHED_API_ANS, error) {
+	if !CheckCurrencyValid(curr_a) || !CheckCurrencyValid(curr_b) {
+		return ENRICHED_API_ANS{}, fmt.Errorf("Wrong or unsupported currency")
+	}
+	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/enriched/" + curr_a + "/" + curr_b
+
+	resp, err := http.Get(website)
+	if err != nil {
+		return ENRICHED_API_ANS{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ENRICHED_API_ANS{}, fmt.Errorf("API returned status: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ENRICHED_API_ANS{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var data ENRICHED_API_ANS
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return ENRICHED_API_ANS{}, err
+	}
+
+	if data.Result != "success" {
+		return ENRICHED_API_ANS{}, fmt.Errorf("API returned error result: %s", data.Result)
+	}
+
+	return data, nil
+}
+
+func GetPairData(curr_a, curr_b string, amount float64) (PAIR_API_ANS, error) {
+	if !CheckCurrencyValid(curr_a) || !CheckCurrencyValid(curr_b) {
+		return PAIR_API_ANS{}, fmt.Errorf("Wrong or unsupported currency")
+	}
+
+	if curr_a == curr_b {
+		if amount != 0 && amount > 0 {
+			return PAIR_API_ANS{Conversion_rate: 1, Conversion_result: amount}, nil
+		} else {
+			return PAIR_API_ANS{Conversion_rate: 1}, nil
+		}
+	}
+
+	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/pair/" + curr_a + "/" + curr_b
+	if amount > 0 {
+		website += "/" + strconv.FormatFloat(amount, 'f', 4, 64)
+	}
+
+	resp, err := http.Get(website)
+	if err != nil {
+		return PAIR_API_ANS{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return PAIR_API_ANS{}, fmt.Errorf("API returned status: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return PAIR_API_ANS{}, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var data PAIR_API_ANS
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		return PAIR_API_ANS{}, err
+	}
+
+	if data.Result != "success" {
+		return PAIR_API_ANS{}, fmt.Errorf("API returned error result: %s", data.Result)
+	}
+
+	return data, nil
 }
 
 func GetApiKey() string {
@@ -69,15 +191,8 @@ func GetApiKey() string {
 
 func GetRatio(curr_a string, curr_b string) (float64, error) {
 
-	if len(curr_a) < 3 || len(curr_b) < 3 {
-		return 0, fmt.Errorf("Currency code must be 3 characters")
-	}
-
-	_, ok_1 := supported_currencies[curr_a]
-	_, ok_2 := supported_currencies[curr_b]
-
-	if !ok_1 || !ok_2 {
-		return 0, fmt.Errorf("Unsupported currency detected")
+	if !CheckCurrencyValid(curr_a) || !CheckCurrencyValid(curr_b) {
+		return 0, fmt.Errorf("Wrong or unsupported currency")
 	}
 
 	if curr_a == curr_b {
@@ -101,7 +216,7 @@ func GetRatio(curr_a string, curr_b string) (float64, error) {
 		return 0, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	var data API_ANS
+	var data STD_API_ANS
 	err = json.Unmarshal(body, &data)
 	if err != nil {
 		return 0, err
