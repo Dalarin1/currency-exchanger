@@ -53,15 +53,6 @@ WHY?
     ./currency -f USD -t EUR
     ```
 
-## 🎯 Usage
-
-Check USD to EUR:
-
-```bash
-./currency -f USD -t EUR
-./currency -f USD -e
-./currency -f USD -a 100500 -t EUR
-```
 
 ### Command-line Flags
 
@@ -71,3 +62,11 @@ Check USD to EUR:
 - `-hist` Show historical data about base currency
 - `-e` Show enriched data about base currency
 - `-h` Show help (there is no help, actually.)
+
+## 🎯 Usage
+
+```bash
+./currency -f USD -t EUR
+./currency -f USD -e
+./currency -f USD -a 100500 -t EUR
+```
