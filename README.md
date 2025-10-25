@@ -53,7 +53,6 @@ WHY?
     ./currency -f USD -t EUR
     ```
 
-
 ### Command-line Flags
 
 - `-f` Base currency (default: "RUB")
