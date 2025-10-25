@@ -59,9 +59,15 @@ Check USD to EUR:
 
 ```bash
 ./currency -f USD -t EUR
+./currency -f USD -e
+./currency -f USD -a 100500 -t EUR
 ```
 
 ### Command-line Flags
 
 - `-f` Base currency (default: "RUB")
-- `-t` Target currency (default: "USD")
+- `-t` Target currency
+- `-a` Amount of base currency to convert to target currency (will break without target currency)
+- `-hist` Show historical data about base currency
+- `-e` Show enriched data about base currency
+- `-h` Show help (there is no help, actually.)
