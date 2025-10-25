@@ -166,40 +166,8 @@ func GetStdData(currency string) (STD_API_ANS, error) {
 		return STD_API_ANS{}, fmt.Errorf("Wrong or unsupported currency")
 	}
 	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/latest/" + currency
-	// resp, err := http.Get(website)
 
-	// if err != nil {
-	// 	return STD_API_ANS{}, err
-	// }
-	// defer resp.Body.Close()
-
-	// if resp.StatusCode != http.StatusOK {
-	// 	return STD_API_ANS{}, fmt.Errorf("API returned status: %d", resp.StatusCode)
-	// }
-
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return STD_API_ANS{}, fmt.Errorf("failed to read response: %w", err)
-	// }
-
-	// var data STD_API_ANS
-	// err = json.Unmarshal(body, &data)
-	// if err != nil {
-	// 	return STD_API_ANS{}, err
-	// }
-
-	// if data.Result != "success" {
-	// 	return STD_API_ANS{}, fmt.Errorf("API returned error result: %s", data.Result)
-	// }
-
-	// return data, nil
-	data, errn := GetData[STD_API_ANS](website)
-	if errn != nil || data.Result != "success" {
-		return STD_API_ANS{}, errn
-	}
-
-	return data, nil
-
+	return GetData[STD_API_ANS](website)
 }
 
 func GetHystoricalData(currency string, year, month, day int) (HYSTORICAL_API_ANS, error) {
@@ -220,35 +188,7 @@ func GetHystoricalData(currency string, year, month, day int) (HYSTORICAL_API_AN
 	}
 	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/history/" + currency + "/" + strconv.FormatInt((int64)(year), 10) + "/" + strconv.FormatInt((int64)(month), 10) + "/" + strconv.FormatInt((int64)(day), 10)
 
-	// resp, err := http.Get(website)
-	// if err != nil {
-	// 	return HYSTORICAL_API_ANS{}, err
-	// }
-	// defer resp.Body.Close()
-
-	// if resp.StatusCode != http.StatusOK {
-	// 	return HYSTORICAL_API_ANS{}, fmt.Errorf("API returned status: %d", resp.StatusCode)
-	// }
-
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return HYSTORICAL_API_ANS{}, fmt.Errorf("failed to read response: %w", err)
-	// }
-
-	// var data HYSTORICAL_API_ANS
-	// err = json.Unmarshal(body, &data)
-	// if err != nil {
-	// 	return HYSTORICAL_API_ANS{}, err
-	// }
-
-	// if data.Result != "success" {
-	// 	return HYSTORICAL_API_ANS{}, fmt.Errorf("API returned error result: %s", data.Result)
-	// }
-	data, errn := GetData[HYSTORICAL_API_ANS](website)
-	if errn != nil {
-		return HYSTORICAL_API_ANS{}, errn
-	}
-	return data, nil
+	return GetData[HYSTORICAL_API_ANS](website)
 }
 
 func GetEnrichedData(curr_a, curr_b string) (ENRICHED_API_ANS, error) {
@@ -257,32 +197,7 @@ func GetEnrichedData(curr_a, curr_b string) (ENRICHED_API_ANS, error) {
 	}
 	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/enriched/" + curr_a + "/" + curr_b
 
-	// resp, err := http.Get(website)
-	// if err != nil {
-	// 	return ENRICHED_API_ANS{}, err
-	// }
-	// defer resp.Body.Close()
-
-	// if resp.StatusCode != http.StatusOK {
-	// 	return ENRICHED_API_ANS{}, fmt.Errorf("API returned status: %d", resp.StatusCode)
-	// }
-
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return ENRICHED_API_ANS{}, fmt.Errorf("failed to read response: %w", err)
-	// }
-
-	// var data ENRICHED_API_ANS
-	// err = json.Unmarshal(body, &data)
-	// if err != nil {
-	// 	return ENRICHED_API_ANS{}, err
-	// }
-	data, errn := GetData[ENRICHED_API_ANS](website)
-	if errn != nil {
-		return ENRICHED_API_ANS{}, errn
-	}
-
-	return data, nil
+	return GetData[ENRICHED_API_ANS](website)
 }
 
 func GetPairData(curr_a, curr_b string, amount float64) (PAIR_API_ANS, error) {
@@ -303,32 +218,7 @@ func GetPairData(curr_a, curr_b string, amount float64) (PAIR_API_ANS, error) {
 		website += "/" + strconv.FormatFloat(amount, 'f', 4, 64)
 	}
 
-	// resp, err := http.Get(website)
-	// if err != nil {
-	// 	return PAIR_API_ANS{}, err
-	// }
-	// defer resp.Body.Close()
-
-	// if resp.StatusCode != http.StatusOK {
-	// 	return PAIR_API_ANS{}, fmt.Errorf("API returned status: %d", resp.StatusCode)
-	// }
-
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return PAIR_API_ANS{}, fmt.Errorf("failed to read response: %w", err)
-	// }
-
-	// var data PAIR_API_ANS
-	// err = json.Unmarshal(body, &data)
-	// if err != nil {
-	// 	return PAIR_API_ANS{}, err
-	// }
-	data, errn := GetData[PAIR_API_ANS](website)
-	if errn != nil {
-		return PAIR_API_ANS{}, errn
-	}
-
-	return data, nil
+	return GetData[PAIR_API_ANS](website)
 }
 
 func GetApiKey() string {
@@ -343,49 +233,4 @@ func GetApiKey() string {
 		os.Exit(1)
 	}
 	return API_KEY
-}
-
-func GetRatio(curr_a string, curr_b string) (float64, error) {
-
-	if !CheckCurrencyValid(curr_a) || !CheckCurrencyValid(curr_b) {
-		return 0, fmt.Errorf("Wrong or unsupported currency")
-	}
-
-	if curr_a == curr_b {
-		return 1, nil
-	}
-
-	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/latest/" + curr_a
-	resp, err := http.Get(website)
-
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("API returned status: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var data STD_API_ANS
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		return 0, err
-	}
-
-	if data.Result != "success" {
-		return 0, fmt.Errorf("API returned error result: %s", data.Result)
-	}
-
-	ratio, success := data.Conversion_rates[curr_b]
-	if !success {
-		return 0, fmt.Errorf("currency %s not found", curr_b)
-	}
-
-	return ratio, nil
 }
