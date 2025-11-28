@@ -12,8 +12,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var API_KEY string = "YOUR_API_CODE"
-
 var supported_currencies map[string]bool = map[string]bool{"AED": true,
 	"AFN": true, "ALL": true, "AMD": true, "ANG": true, "AOA": true, "ARS": true,
 	"AUD": true, "AWG": true, "AZN": true, "BAM": true, "BBD": true, "BDT": true,
@@ -142,7 +140,10 @@ func GetData[T API_ANS](website string) (T, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return zero, fmt.Errorf("API returned status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		var ans map[string]string
+		json.Unmarshal(body, &ans)
+		return zero, fmt.Errorf("API returned status: %d\nError type: %v", resp.StatusCode, ans["error-type"])
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -165,14 +166,18 @@ func GetStdData(currency string) (STD_API_ANS, error) {
 	if !CheckCurrencyValid(currency) {
 		return STD_API_ANS{}, fmt.Errorf("Wrong or unsupported currency")
 	}
-	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/latest/" + currency
+	api_key, err := GetApiKey()
+	if err == nil {
+		var website string = "https://v6.exchangerate-api.com/v6/" + api_key + "/latest/" + currency
 
-	return GetData[STD_API_ANS](website)
+		return GetData[STD_API_ANS](website)
+	} else {
+		return STD_API_ANS{}, err
+	}
+
 }
 
-func GetHystoricalData(currency string, year, month, day int) (HYSTORICAL_API_ANS, error) {
-	date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-
+func GetHystoricalData(currency string, date time.Time, amount float64) (HYSTORICAL_API_ANS, error) {
 	if date.After(border_time) {
 		if !CheckCurrencyValid(currency) {
 			return HYSTORICAL_API_ANS{}, fmt.Errorf("ERROR: Unsupported currency")
@@ -183,21 +188,35 @@ func GetHystoricalData(currency string, year, month, day int) (HYSTORICAL_API_AN
 			return HYSTORICAL_API_ANS{}, fmt.Errorf("ERROR: Unsupported currency")
 		}
 		if date.Before(min_avaliable_date) {
-			return HYSTORICAL_API_ANS{}, fmt.Errorf("ERROR: To old date; 01/01/1990 is oldes supported date")
+			return HYSTORICAL_API_ANS{}, fmt.Errorf("ERROR: Too old date; 01/01/1990 is oldes supported date")
 		}
 	}
-	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/history/" + currency + "/" + strconv.FormatInt((int64)(year), 10) + "/" + strconv.FormatInt((int64)(month), 10) + "/" + strconv.FormatInt((int64)(day), 10)
+	api_key, err := GetApiKey()
+	if err == nil {
+		var website string = "https://v6.exchangerate-api.com/v6/" + api_key + "/history/" + currency + "/" + strconv.FormatInt((int64)(date.Year()), 10) + "/" + strconv.FormatInt((int64)(date.Month()), 10) + "/" + strconv.FormatInt((int64)(date.Day()), 10)
+		if amount > 0 {
+			website += "/" + strconv.FormatFloat(amount, 'f', 4, 64)
+		}
+		return GetData[HYSTORICAL_API_ANS](website)
+	} else {
+		return HYSTORICAL_API_ANS{}, err
+	}
 
-	return GetData[HYSTORICAL_API_ANS](website)
 }
 
 func GetEnrichedData(curr_a, curr_b string) (ENRICHED_API_ANS, error) {
 	if !CheckCurrencyValid(curr_a) || !CheckCurrencyValid(curr_b) {
 		return ENRICHED_API_ANS{}, fmt.Errorf("Wrong or unsupported currency")
 	}
-	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/enriched/" + curr_a + "/" + curr_b
+	api_key, err := GetApiKey()
+	if err == nil {
+		var website string = "https://v6.exchangerate-api.com/v6/" + api_key + "/enriched/" + curr_a + "/" + curr_b
 
-	return GetData[ENRICHED_API_ANS](website)
+		return GetData[ENRICHED_API_ANS](website)
+	} else {
+		return ENRICHED_API_ANS{}, err
+	}
+
 }
 
 func GetPairData(curr_a, curr_b string, amount float64) (PAIR_API_ANS, error) {
@@ -212,25 +231,77 @@ func GetPairData(curr_a, curr_b string, amount float64) (PAIR_API_ANS, error) {
 			return PAIR_API_ANS{Conversion_rate: 1}, nil
 		}
 	}
-
-	var website string = "https://v6.exchangerate-api.com/v6/" + GetApiKey() + "/pair/" + curr_a + "/" + curr_b
-	if amount > 0 {
-		website += "/" + strconv.FormatFloat(amount, 'f', 4, 64)
+	api_key, err := GetApiKey()
+	if err == nil {
+		var website string = "https://v6.exchangerate-api.com/v6/" + api_key + "/pair/" + curr_a + "/" + curr_b
+		if amount > 0 {
+			website += "/" + strconv.FormatFloat(amount, 'f', 4, 64)
+		}
+		res, err := GetData[PAIR_API_ANS](website)
+		return res, err
+	} else {
+		return PAIR_API_ANS{}, err
 	}
-
-	return GetData[PAIR_API_ANS](website)
 }
 
-func GetApiKey() string {
+func GetApiKey() (string, error) {
 	godotenv.Load()
 
 	apiKey := os.Getenv("EXCHANGERATE_API_KEY")
 	if apiKey != "" {
-		return apiKey
+		return apiKey, nil
 	}
+	return "", fmt.Errorf("Api key does not found")
+}
 
-	if API_KEY == "YOUR_API_CODE" {
-		os.Exit(1)
+func FormatStdData(stddata STD_API_ANS) string {
+	var result string = ""
+	for c, v := range stddata.Conversion_rates {
+		result += fmt.Sprintf(" %s => %f \n", c, v)
 	}
-	return API_KEY
+	return result
+}
+
+func FormatPairData(pairdata PAIR_API_ANS, amount float64) string {
+	var result string = ""
+	result += fmt.Sprintf("1 %s = %f %s\n", pairdata.Base_code, pairdata.Conversion_rate, pairdata.Target_code)
+	if amount != 0 {
+		result += fmt.Sprintf("%f %s = %f %s\n", amount, pairdata.Base_code, pairdata.Conversion_result, pairdata.Target_code)
+	}
+	return result
+}
+
+func FormatEnrichedData(endata ENRICHED_API_ANS) string {
+	var result string = ""
+	result += fmt.Sprintf("1 %s = %f %s", endata.Base_code, endata.Conversion_rate, endata.Target_code)
+	/*"target_data": {
+		"locale": "Japan",
+		"two_letter_code": "JP",
+		"currency_name": "Japanese Yen",
+		"currency_name_short": "Yen",
+		"display_symbol": "00A5",
+		"flag_url": "https://www.exchangerate-api.com/img/docs/JP.gif"
+	}*/
+	result += "Target data: \n"
+	result += "\tLocale: " + endata.Target_data["locale"] + "\n"
+	result += "\tTwo letter code: " + endata.Target_data["two_letter_code"] + "\n"
+	result += "\tCurrency name: " + endata.Target_data["currency_name"] + "\n"
+	result += "\tCurrency short name: " + endata.Target_data["currency_short_name"] + "\n"
+	result += "\tDisplay symbol: " + endata.Target_data["display_symbol"] + "\n"
+	result += "\tFlag url: " + endata.Target_data["flag_url"] + "\n"
+	return result
+}
+
+func FormatHystoricalData(hdata HYSTORICAL_API_ANS, use_worst_date_format_ever bool) string {
+	var result string = ""
+	if use_worst_date_format_ever {
+		result += fmt.Sprintf("Date: %d/%d/%d \n", hdata.Month, hdata.Day, hdata.Year)
+	} else {
+		result += fmt.Sprintf("Date: %d/%d/%d \n", hdata.Day, hdata.Month, hdata.Year)
+	}
+	result += "Base code: " + hdata.Base_code + "\n"
+	for c, v := range hdata.Conversion_rates {
+		result += fmt.Sprintf(" %s => %f \n", c, v)
+	}
+	return result
 }
