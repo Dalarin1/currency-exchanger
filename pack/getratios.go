@@ -6,51 +6,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
+	"strings"
 	"time"
-
-	"github.com/joho/godotenv"
 )
-
-var supported_currencies map[string]bool = map[string]bool{"AED": true,
-	"AFN": true, "ALL": true, "AMD": true, "ANG": true, "AOA": true, "ARS": true,
-	"AUD": true, "AWG": true, "AZN": true, "BAM": true, "BBD": true, "BDT": true,
-	"BGN": true, "BHD": true, "BIF": true, "BMD": true, "BND": true, "BOB": true,
-	"BRL": true, "BSD": true, "BTN": true, "BWP": true, "BYN": true, "BZD": true,
-	"CAD": true, "CDF": true, "CHF": true, "CLP": true, "CNY": true, "COP": true,
-	"CRC": true, "CUP": true, "CVE": true, "CZK": true, "DJF": true, "DKK": true,
-	"DOP": true, "DZD": true, "EGP": true, "ERN": true, "ETB": true, "EUR": true,
-	"FJD": true, "FKP": true, "FOK": true, "GBP": true, "GEL": true, "GGP": true,
-	"GHS": true, "GIP": true, "GMD": true, "GNF": true, "GTQ": true, "GYD": true,
-	"HKD": true, "HNL": true, "HRK": true, "HTG": true, "HUF": true, "IDR": true,
-	"ILS": true, "IMP": true, "INR": true, "IQD": true, "IRR": true, "ISK": true,
-	"JEP": true, "JMD": true, "JOD": true, "JPY": true, "KES": true, "KGS": true,
-	"KHR": true, "KID": true, "KMF": true, "KRW": true, "KWD": true, "KYD": true,
-	"KZT": true, "LAK": true, "LBP": true, "LKR": true, "LRD": true, "LSL": true,
-	"LYD": true, "MAD": true, "MDL": true, "MGA": true, "MKD": true, "MMK": true,
-	"MNT": true, "MOP": true, "MRU": true, "MUR": true, "MVR": true, "MWK": true,
-	"MXN": true, "MYR": true, "MZN": true, "NAD": true, "NGN": true, "NIO": true,
-	"NOK": true, "NPR": true, "NZD": true, "OMR": true, "PAB": true, "PEN": true,
-	"PGK": true, "PHP": true, "PKR": true, "PLN": true, "PYG": true, "QAR": true,
-	"RON": true, "RSD": true, "RUB": true, "RWF": true, "SAR": true, "SBD": true,
-	"SCR": true, "SDG": true, "SEK": true, "SGD": true, "SHP": true, "SLE": true,
-	"SOS": true, "SRD": true, "SSP": true, "STN": true, "SYP": true, "SZL": true,
-	"THB": true, "TJS": true, "TMT": true, "TND": true, "TOP": true, "TRY": true,
-	"TTD": true, "TVD": true, "TWD": true, "TZS": true, "UAH": true, "UGX": true,
-	"USD": true, "UYU": true, "UZS": true, "VES": true, "VND": true, "VUV": true,
-	"WST": true, "XAF": true, "XCD": true, "XDR": true, "XOF": true, "XPF": true,
-	"YER": true, "ZAR": true, "ZMW": true, "ZWL": true}
-
-var old_currencies map[string]bool = map[string]bool{
-	"AUD": true, "ATS": true, "BEF": true, "BRL": true,
-	"CAD": true, "CHF": true, "CNY": true, "DEM": true,
-	"DKK": true, "ESP": true, "EUR": true, "FIM": true,
-	"FRF": true, "GBP": true, "GRD": true, "HKD": true,
-	"IEP": true, "INR": true, "IRR": true, "ITL": true,
-	"JPY": true, "KRW": true, "LKR": true, "MXN": true,
-	"MYR": true, "NOK": true, "NLG": true, "NZD": true,
-	"PTE": true, "SEK": true, "SGD": true, "THB": true,
-	"TWD": true, "USD": true, "ZAR": true}
 
 var min_avaliable_date time.Time = time.Date(1990, time.January, 1, 0, 0, 0, 0, time.UTC)
 var border_time time.Time = time.Date(2020, time.December, 31, 0, 0, 0, 0, time.UTC)
@@ -107,7 +68,7 @@ func (ans ENRICHED_API_ANS) GetResult() string {
 	return ans.Result
 }
 
-type HYSTORICAL_API_ANS struct {
+type HISTORICAL_API_ANS struct {
 	Result           string             `json:"result"`
 	Documentation    string             `json:"documentation"`
 	Terms_of_use     string             `json:"terms_of_use"`
@@ -118,16 +79,16 @@ type HYSTORICAL_API_ANS struct {
 	Conversion_rates map[string]float64 `json:"conversion_rates"`
 }
 
-func (ans HYSTORICAL_API_ANS) GetResult() string {
+func (ans HISTORICAL_API_ANS) GetResult() string {
 	return ans.Result
 }
 func CheckCurrencyValid(currency string) bool {
-	_, ok := supported_currencies[currency]
+	_, ok := SupportedCurrencies[currency]
 	return len(currency) == 3 && ok
 }
 
 type API_ANS interface {
-	STD_API_ANS | ENRICHED_API_ANS | PAIR_API_ANS | HYSTORICAL_API_ANS
+	STD_API_ANS | ENRICHED_API_ANS | PAIR_API_ANS | HISTORICAL_API_ANS
 	GetResult() string
 }
 
@@ -177,18 +138,18 @@ func GetStdData(currency string) (STD_API_ANS, error) {
 
 }
 
-func GetHystoricalData(currency string, date time.Time, amount float64) (HYSTORICAL_API_ANS, error) {
+func GetHistoricalData(currency string, date time.Time, amount float64) (HISTORICAL_API_ANS, error) {
 	if date.After(border_time) {
 		if !CheckCurrencyValid(currency) {
-			return HYSTORICAL_API_ANS{}, fmt.Errorf("ERROR: Unsupported currency")
+			return HISTORICAL_API_ANS{}, fmt.Errorf("ERROR: Unsupported currency")
 		}
 	} else {
-		_, ok := old_currencies[currency]
+		_, ok := OldCurrencies[currency]
 		if !ok {
-			return HYSTORICAL_API_ANS{}, fmt.Errorf("ERROR: Unsupported currency")
+			return HISTORICAL_API_ANS{}, fmt.Errorf("ERROR: Unsupported currency")
 		}
 		if date.Before(min_avaliable_date) {
-			return HYSTORICAL_API_ANS{}, fmt.Errorf("ERROR: Too old date; 01/01/1990 is oldes supported date")
+			return HISTORICAL_API_ANS{}, fmt.Errorf("ERROR: Too old date; 01/01/1990 is oldes supported date")
 		}
 	}
 	api_key, err := GetApiKey()
@@ -197,9 +158,9 @@ func GetHystoricalData(currency string, date time.Time, amount float64) (HYSTORI
 		if amount > 0 {
 			website += "/" + strconv.FormatFloat(amount, 'f', 4, 64)
 		}
-		return GetData[HYSTORICAL_API_ANS](website)
+		return GetData[HISTORICAL_API_ANS](website)
 	} else {
-		return HYSTORICAL_API_ANS{}, err
+		return HISTORICAL_API_ANS{}, err
 	}
 
 }
@@ -245,13 +206,25 @@ func GetPairData(curr_a, curr_b string, amount float64) (PAIR_API_ANS, error) {
 }
 
 func GetApiKey() (string, error) {
-	godotenv.Load()
+	// Получаем путь к текущему файлу (getratios.go)
+	_, filename, _, _ := runtime.Caller(0)
+	// Определяем путь к каталогу пакета
+	dir := filepath.Dir(filename)
+	// Строим путь к .env в родительской директории
+	envPath := filepath.Join(dir, "..", ".env")
 
-	apiKey := os.Getenv("EXCHANGERATE_API_KEY")
-	if apiKey != "" {
-		return apiKey, nil
+	data, err := os.ReadFile(envPath)
+	if err != nil {
+		return "", fmt.Errorf("cannot read %s: %w", envPath, err)
 	}
-	return "", fmt.Errorf("Api key does not found")
+
+	text := string(data)
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) == 2 {
+		return strings.TrimSpace(parts[1]), nil
+	}
+
+	return "", fmt.Errorf("API key not found in %s", envPath)
 }
 
 func FormatStdData(stddata STD_API_ANS) string {
@@ -286,13 +259,13 @@ func FormatEnrichedData(endata ENRICHED_API_ANS) string {
 	result += "\tLocale: " + endata.Target_data["locale"] + "\n"
 	result += "\tTwo letter code: " + endata.Target_data["two_letter_code"] + "\n"
 	result += "\tCurrency name: " + endata.Target_data["currency_name"] + "\n"
-	result += "\tCurrency short name: " + endata.Target_data["currency_short_name"] + "\n"
+	result += "\tCurrency short name: " + endata.Target_data["currency_name_short"] + "\n"
 	result += "\tDisplay symbol: " + endata.Target_data["display_symbol"] + "\n"
 	result += "\tFlag url: " + endata.Target_data["flag_url"] + "\n"
 	return result
 }
 
-func FormatHystoricalData(hdata HYSTORICAL_API_ANS, use_worst_date_format_ever bool) string {
+func FormatHistoricalData(hdata HISTORICAL_API_ANS, use_worst_date_format_ever bool) string {
 	var result string = ""
 	if use_worst_date_format_ever {
 		result += fmt.Sprintf("Date: %d/%d/%d \n", hdata.Month, hdata.Day, hdata.Year)

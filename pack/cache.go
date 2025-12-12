@@ -1,10 +1,66 @@
 package currency
 
-// Ищем запись в .json кэше
-func FindCacheEntry(callArgs string) (string, error) {
-	return "", nil
+import (
+	"encoding/json"
+	"errors"
+	"os"
+	"time"
+)
+
+const cacheFile = "cache.json"
+
+// структура одной записи кэша
+type CacheEntry struct {
+	Time   int64  `json:"time"`
+	Result string `json:"result"`
 }
 
-// сохраняем запись в .json
-func Store(callArgs, result string) {
+// ищем запись в JSON-кэше
+func FindCacheEntry(callArgs string) (string, error) {
+	data, err := os.ReadFile(cacheFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", errors.New("cache file not found")
+		}
+		return "", err
+	}
+
+	var cache map[string]CacheEntry
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return "", err
+	}
+
+	entry, ok := cache[callArgs]
+	if !ok {
+		return "", errors.New("cache entry not found")
+	}
+
+	return entry.Result, nil
+}
+
+// сохраняем запись в JSON-кэш
+func StoreCacheEntry(callArgs, result string) {
+	var cache map[string]CacheEntry
+
+	// читаем существующий кэш (если есть)
+	data, err := os.ReadFile(cacheFile)
+	if err == nil {
+		_ = json.Unmarshal(data, &cache)
+	}
+	if cache == nil {
+		cache = make(map[string]CacheEntry)
+	}
+
+	// добавляем/обновляем запись
+	cache[callArgs] = CacheEntry{
+		Time:   time.Now().Unix(),
+		Result: result,
+	}
+
+	// сохраняем обратно в файл
+	newData, err := json.MarshalIndent(cache, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(cacheFile, newData, 0644)
 }
