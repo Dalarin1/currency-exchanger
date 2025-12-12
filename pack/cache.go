@@ -16,26 +16,26 @@ type CacheEntry struct {
 }
 
 // ищем запись в JSON-кэше
-func FindCacheEntry(callArgs string) (string, error) {
+func FindCacheEntry(callArgs string) (string, int64, error) {
 	data, err := os.ReadFile(cacheFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", errors.New("cache file not found")
+			return "", -1, errors.New("cache file not found")
 		}
-		return "", err
+		return "", -1, err
 	}
 
 	var cache map[string]CacheEntry
 	if err := json.Unmarshal(data, &cache); err != nil {
-		return "", err
+		return "", -1, err
 	}
 
 	entry, ok := cache[callArgs]
 	if !ok {
-		return "", errors.New("cache entry not found")
+		return "", -1, errors.New("cache entry not found")
 	}
 
-	return entry.Result, nil
+	return entry.Result, entry.Time, nil
 }
 
 // сохраняем запись в JSON-кэш

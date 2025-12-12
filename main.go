@@ -55,10 +55,13 @@ func main() {
 }
 
 func withCache(key string, fetch func() string) {
-	if cached, err := currency.FindCacheEntry(key); err == nil {
-		fmt.Println("[cache hit]")
-		fmt.Println(cached)
-		return
+	if cached, timestamp, err := currency.FindCacheEntry(key); err == nil {
+		age := time.Since(time.Unix(timestamp, 0))
+		if age < 6*time.Hour {
+			fmt.Println("[cache hit]")
+			fmt.Println(cached)
+			return
+		}
 	}
 
 	fmt.Println("[cache miss]")
